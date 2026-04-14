@@ -3,7 +3,6 @@ Jobright.ai H1B Jobs Scraper.
 Scrapes the public GitHub repo: jobright-ai/Daily-H1B-Jobs-In-Tech
 This repo is updated daily with verified H1B-sponsoring jobs.
 """
-import re
 import requests
 import time
 from config import APIFY_API_TOKEN
@@ -16,7 +15,7 @@ def scrape_jobright() -> list[dict]:
     actor_input = {
         "query": "https://github.com/jobright-ai/Daily-H1B-Jobs-In-Tech",
         "maxResults": 1,
-        "outputFormats": ["markdown"],
+        "outputFormats": ["text"],
     }
 
     run_url = (
@@ -36,7 +35,7 @@ def scrape_jobright() -> list[dict]:
 
     # Poll for completion
     status_url = f"https://api.apify.com/v2/actor-runs/{run_id}?token={APIFY_API_TOKEN}"
-    for _ in range(60):
+    for _ in range(90):
         time.sleep(10)
         try:
             status = requests.get(status_url, timeout=15).json()["data"]["status"]
@@ -64,18 +63,18 @@ def scrape_jobright() -> list[dict]:
 
     jobs = []
     for item in items:
-        markdown = item.get("markdown", item.get("text", ""))
-        extracted = _parse_jobright_table(markdown)
+        text = item.get("text", item.get("markdown", ""))
+        extracted = _parse_jobright_table(text)
         jobs.extend(extracted)
 
-    print(f"  [Jobright] Found {len(jobs)} H1B jobs")
+    print(f"  [Jobright] Found {len(jobs)} H1B data jobs")
     return jobs
 
 
-def _parse_jobright_table(markdown: str) -> list[dict]:
+def _parse_jobright_table(text: str) -> list[dict]:
     """Parse the tab-separated table from Jobright GitHub repo."""
     jobs = []
-    lines = markdown.split("\n")
+    lines = text.split("\n")
 
     data_keywords = [
         "data", "analyst", "analytics", "etl", "pipeline",
@@ -83,15 +82,14 @@ def _parse_jobright_table(markdown: str) -> list[dict]:
     ]
 
     for line in lines:
-        # Skip non-data lines
         if "\tapply\t" not in line:
             continue
 
         parts = [p.strip() for p in line.split("\t")]
-        if len(parts) < 7:
+        if len(parts) < 6:
             continue
 
-        company = parts[0].strip("↳ ")
+        company = parts[0].strip("↳ ").strip()
         title = parts[1] if len(parts) > 1 else ""
         level = parts[2] if len(parts) > 2 else ""
         location = parts[3] if len(parts) > 3 else ""
@@ -104,17 +102,19 @@ def _parse_jobright_table(markdown: str) -> list[dict]:
 
         sponsorship = "Yes (H1B explicit)" if "🏅" in h1b_status else "Yes (H1B history)"
 
-        # Build the jobright search URL since apply links aren't in text format
-        apply_url = f"https://jobright.ai/jobs?title={title.replace(' ', '+')}&company={company.replace(' ', '+')}"
+        # Build jobright search URL
+        search_title = title.replace(" ", "+")
+        search_company = company.replace(" ", "+")
+        apply_url = f"https://jobright.ai/jobs?title={search_title}&company={search_company}"
 
         jobs.append({
-            "title": title,
+            "title": title.strip(),
             "company": company,
-            "location": location,
+            "location": location.strip(),
             "apply_link": apply_url,
-            "posted_time": date_posted,
+            "posted_time": date_posted.strip(),
             "applicants": "Unknown",
-            "description": f"Level: {level}. H1B sponsorship verified.",
+            "description": f"Level: {level.strip()}. H1B sponsorship verified by Jobright.",
             "source": "Jobright (H1B)",
             "visa_sponsorship": sponsorship,
         })

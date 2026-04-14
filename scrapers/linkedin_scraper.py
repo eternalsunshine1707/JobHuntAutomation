@@ -69,17 +69,25 @@ def scrape_linkedin(job_title: str, location: str = "United States") -> list[dic
 
     jobs = []
     for item in items:
+        # LinkedIn returns 'link' as the job URL, 'companyName', 'descriptionText'
+        apply_link = item.get("link", "")
+        posted_raw = item.get("postedAt", item.get("postedAtTimestamp", "Unknown"))
+        applicants = item.get("applicantsCount", "Unknown")
+        description = item.get("descriptionText", item.get("description", ""))
+        if isinstance(description, dict):
+            description = description.get("text", "")
+
         job = {
             "title": item.get("title", ""),
             "company": item.get("companyName", ""),
             "location": item.get("location", ""),
-            "apply_link": item.get("jobUrl", item.get("link", "")),
-            "posted_time": item.get("postedTime", item.get("publishedAt", "Unknown")),
-            "applicants": item.get("applicantsCount", item.get("numberOfApplicants", "Unknown")),
-            "description": item.get("description", ""),
+            "apply_link": apply_link,
+            "posted_time": str(posted_raw),
+            "applicants": str(applicants) if applicants else "Unknown",
+            "description": str(description)[:500],
             "source": "LinkedIn",
         }
-        if job["title"] and job["company"]:
+        if job["title"] and job["company"] and job["apply_link"]:
             jobs.append(job)
 
     print(f"  [LinkedIn] Found {len(jobs)} jobs for '{job_title}'")

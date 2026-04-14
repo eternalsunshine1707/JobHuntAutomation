@@ -87,16 +87,11 @@ def run_pipeline():
     print("\n[Step 3/5] Scoring and ranking by skill match...\n")
     scored_jobs = filter_and_score_jobs(unique_jobs)
 
-    # Filter out jobs without valid apply links
-    scored_jobs = [j for j in scored_jobs if j.get("apply_link", "").startswith("http")]
-    print(f"  Jobs with valid apply links: {len(scored_jobs)}")
+    if not scored_jobs:
+        print("  No jobs after scoring. Exiting.")
+        return
 
-    # Cap at top 100 highest-scoring jobs
-    TOP_N = 100
-    if len(scored_jobs) > TOP_N:
-        print(f"  Capping to top {TOP_N} best-matched jobs (out of {len(scored_jobs)})")
-        scored_jobs = scored_jobs[:TOP_N]
-
+    print(f"  Final job count: {len(scored_jobs)}")
     print(f"  Top match score: {scored_jobs[0]['match_score'] if scored_jobs else 'N/A'}")
     print(f"  Jobs with visa sponsorship: {sum(1 for j in scored_jobs if 'yes' in j.get('visa_sponsorship', '').lower())}")
 

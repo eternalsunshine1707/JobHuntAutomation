@@ -1,11 +1,14 @@
 """
 Deduplicator - Tracks seen jobs across runs to avoid sending duplicates.
-Uses a JSON file to persist job IDs between runs.
+Keeps a 7-day history. Jobs older than 7 days are cleared automatically.
 """
 import json
 import hashlib
 import os
+import time
 from config import SEEN_JOBS_FILE
+
+SEVEN_DAYS = 7 * 24 * 60 * 60  # seconds
 
 
 def generate_job_id(job: dict) -> str:
@@ -14,46 +17,46 @@ def generate_job_id(job: dict) -> str:
     return hashlib.md5(raw.encode()).hexdigest()
 
 
-def load_seen_jobs() -> set:
-    """Load previously seen job IDs from file."""
+def load_seen_jobs() -> dict:
+    """Load previously seen job IDs with timestamps."""
     if os.path.exists(SEEN_JOBS_FILE):
         try:
             with open(SEEN_JOBS_FILE, "r") as f:
                 data = json.load(f)
-                return set(data.get("seen_ids", []))
-        except (json.JSONDecodeError, KeyError):
-            return set()
-    return set()
+                # Clean out entries older than 7 days
+                now = time.time()
+                cleaned = {k: v for k, v in data.items() if now - v < SEVEN_DAYS}
+                return cleaned
+        except (json.JSONDecodeError, KeyError, TypeError):
+            return {}
+    return {}
 
 
-def save_seen_jobs(seen_ids: set):
-    """Save seen job IDs to file."""
-    # Keep only last 5000 IDs to prevent file from growing forever
-    ids_list = list(seen_ids)[-5000:]
+def save_seen_jobs(seen: dict):
+    """Save seen job IDs with timestamps."""
     with open(SEEN_JOBS_FILE, "w") as f:
-        json.dump({"seen_ids": ids_list}, f)
+        json.dump(seen, f)
 
 
 def deduplicate_jobs(jobs: list[dict]) -> list[dict]:
-    """Remove jobs that have been seen in previous runs AND remove cross-platform duplicates."""
-    seen_ids = load_seen_jobs()
+    """Remove jobs seen in previous runs (last 7 days) and cross-platform duplicates."""
+    seen = load_seen_jobs()
     new_jobs = []
     current_run_ids = set()
+    now = time.time()
 
     for job in jobs:
         job_id = generate_job_id(job)
 
-        # Skip if seen in previous runs or already in this batch
-        if job_id in seen_ids or job_id in current_run_ids:
+        # Skip if seen in previous runs (last 7 days) or already in this batch
+        if job_id in seen or job_id in current_run_ids:
             continue
 
         current_run_ids.add(job_id)
+        seen[job_id] = now
         job["job_id"] = job_id
         new_jobs.append(job)
 
-    # Save all IDs (old + new)
-    all_ids = seen_ids | current_run_ids
-    save_seen_jobs(all_ids)
-
-    print(f"  [Dedup] {len(jobs)} total → {len(new_jobs)} new (filtered {len(jobs) - len(new_jobs)} duplicates)")
+    save_seen_jobs(seen)
+    print(f"  [Dedup] {len(jobs)} total → {len(new_jobs)} new (filtered {len(jobs) - len(new_jobs)} duplicates, 7-day history)")
     return new_jobs

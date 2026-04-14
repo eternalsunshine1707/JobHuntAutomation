@@ -13,8 +13,8 @@ def scrape_dice(job_title: str, location: str = "United States") -> list[dict]:
     actor_input = {
         "keyword": job_title,
         "location": location,
-        "maxItems": MAX_JOBS_PER_PLATFORM,
-        "postedDate": "ONE",  # last 24 hours
+        "results_wanted": MAX_JOBS_PER_PLATFORM,
+        "posted_date": "24h",
     }
 
     run_url = (
@@ -62,17 +62,37 @@ def scrape_dice(job_title: str, location: str = "United States") -> list[dict]:
 
     jobs = []
     for item in items:
+        # Dice returns nested jobLocation
+        loc = item.get("location", item.get("jobLocation", {}))
+        if isinstance(loc, dict):
+            location_str = loc.get("displayName", "USA")
+        else:
+            location_str = str(loc)
+
+        # Dice has a willingToSponsor boolean field
+        sponsor = item.get("willingToSponsor", None)
+        if sponsor is True:
+            visa = "Yes"
+        elif sponsor is False:
+            visa = "No"
+        else:
+            visa = "Unknown"
+
+        desc = item.get("description_text", item.get("summary", ""))
+
         job = {
-            "title": item.get("title", item.get("jobTitle", "")),
+            "title": item.get("title", ""),
             "company": item.get("companyName", item.get("company", "")),
-            "location": item.get("location", item.get("jobLocation", "")),
-            "apply_link": item.get("url", item.get("jobUrl", item.get("link", ""))),
-            "posted_time": item.get("postedDate", item.get("datePosted", "Unknown")),
-            "applicants": item.get("applicantsCount", "Unknown"),
-            "description": item.get("description", item.get("jobDescription", "")),
+            "location": location_str,
+            "apply_link": item.get("detailsPageUrl", item.get("url", "")),
+            "posted_time": item.get("postedDate", item.get("posted", "Unknown")),
+            "applicants": "Unknown",
+            "description": str(desc)[:500],
+            "salary": item.get("salary", ""),
             "source": "Dice",
+            "visa_sponsorship": visa,
         }
-        if job["title"] and job["company"]:
+        if job["title"] and job["company"] and job["apply_link"]:
             jobs.append(job)
 
     print(f"  [Dice] Found {len(jobs)} jobs for '{job_title}'")

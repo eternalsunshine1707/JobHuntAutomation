@@ -5,40 +5,31 @@ Also detects visa sponsorship likelihood.
 from config import CORE_SKILLS, VISA_POSITIVE, VISA_NEGATIVE
 
 
-# Only show this many jobs per email — quality over quantity
-MAX_JOBS_PER_EMAIL = 20
-MIN_MATCH_SCORE = 30  # Drop jobs scoring below this
+MAX_JOBS_PER_EMAIL = 100
 
 
-def score_job(job: dict) -> int:
-    """Score a job 0-100 based on how well it matches the resume skills."""
+def score_job(job: dict) -> str:
+    """Score a job as Great Match, Good Match, or Fair Match based on resume skills."""
     text = f"{job.get('title', '')} {job.get('description', '')}".lower()
     title = job.get("title", "").lower()
 
-    # If no description at all, score based on title alone
     if not text.strip():
-        return 10
+        return "Fair Match"
 
-    # Count skill matches
     matches = sum(1 for skill in CORE_SKILLS if skill in text)
-    score = min(100, int((matches / len(CORE_SKILLS)) * 300))
+    ratio = matches / len(CORE_SKILLS)
 
-    # Bonus for exact title match
-    title_keywords = ["data engineer", "data analyst", "analytics engineer", "bi developer", "etl developer"]
-    if any(kw in title for kw in title_keywords):
-        score = min(100, score + 15)
-
-    # Penalty for senior/staff/principal/director roles (less likely to get interview)
-    seniority_flags = ["staff ", "principal", "director", "vp ", "distinguished", "lead architect"]
-    if any(flag in title for flag in seniority_flags):
-        score = max(0, score - 20)
-
-    return max(0, score)
+    if ratio >= 0.15:
+        return "Great Match"
+    elif ratio >= 0.07:
+        return "Good Match"
+    else:
+        return "Fair Match"
 
 
 def detect_visa_sponsorship(job: dict) -> str:
     """Detect visa sponsorship status from job description."""
-    # If already set by scraper (e.g., Jobright)
+    # If already set by scraper (e.g., Jobright or Dice)
     if job.get("visa_sponsorship"):
         return job["visa_sponsorship"]
 
@@ -75,31 +66,33 @@ def detect_visa_sponsorship(job: dict) -> str:
 
 
 def filter_and_score_jobs(jobs: list[dict]) -> list[dict]:
-    """Score, filter, and rank jobs. Returns only the top matches."""
+    """Score, rank, and filter jobs. Removes jobs that clearly won't sponsor."""
     scored = []
+    removed_no_link = 0
+    removed_no_sponsor = 0
+
     for job in jobs:
-        # Skip jobs without a valid apply link
-        link = job.get("apply_link", "")
-        if not link or not link.startswith("http"):
+        # Skip jobs with completely empty apply link
+        link = job.get("apply_link", "").strip()
+        if not link:
+            removed_no_link += 1
             continue
 
         job["match_score"] = score_job(job)
         job["visa_sponsorship"] = detect_visa_sponsorship(job)
 
-        # Skip jobs that explicitly say "No" to sponsorship
+        # Remove jobs that explicitly say No to sponsorship
         if job["visa_sponsorship"] == "No":
-            continue
-
-        # Skip jobs below minimum score
-        if job["match_score"] < MIN_MATCH_SCORE:
+            removed_no_sponsor += 1
             continue
 
         scored.append(job)
 
-    # Sort by match score descending
-    scored.sort(key=lambda x: x["match_score"], reverse=True)
+    # Sort: Great Match first, then Good Match, then Fair Match
+    sort_order = {"Great Match": 0, "Good Match": 1, "Fair Match": 2}
+    scored.sort(key=lambda x: sort_order.get(x["match_score"], 3))
 
-    # Cap at top N
+    # Cap at 100
     result = scored[:MAX_JOBS_PER_EMAIL]
-    print(f"  [Matcher] {len(jobs)} raw → {len(scored)} passed filters → showing top {len(result)}")
+    print(f"  [Matcher] {len(jobs)} raw → removed {removed_no_link} (no link), {removed_no_sponsor} (no sponsorship) → {len(scored)} remaining → showing top {len(result)}")
     return result
