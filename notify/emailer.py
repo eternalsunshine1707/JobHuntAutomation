@@ -7,8 +7,10 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email import encoders
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from config import EMAIL_SENDER, EMAIL_PASSWORD, EMAIL_RECIPIENT, SMTP_SERVER, SMTP_PORT
+
+EST = timezone(timedelta(hours=-4))
 
 
 def send_email(filepath: str, job_count: int):
@@ -17,12 +19,14 @@ def send_email(filepath: str, job_count: int):
         print("  [Email] Skipped — EMAIL_SENDER or EMAIL_APP_PASSWORD not set")
         return
 
-    now = datetime.now().strftime("%B %d, %Y %I:%M %p ET")
+    now_est = datetime.now(EST)
+    date_str = now_est.strftime("%b %d, %Y")
+    time_str = now_est.strftime("%I:%M %p EST")
 
     msg = MIMEMultipart()
     msg["From"] = EMAIL_SENDER
     msg["To"] = EMAIL_RECIPIENT
-    msg["Subject"] = f"🔔 {job_count} New Job Listings — {now}"
+    msg["Subject"] = f"Job Search Results | {date_str} | {time_str}"
 
     body = f"""Hi Sravani,
 
@@ -30,9 +34,7 @@ Your automated job search found {job_count} new listings across LinkedIn, Indeed
 
 The attached Excel file contains all jobs sorted by skill match, with visa sponsorship status flagged.
 
-Apply to the top ones ASAP — early applicants get 4x more callbacks!
-
-— Your Job Hunt Automation Bot
+— Job Hunt Automation Bot
 """
     msg.attach(MIMEText(body, "plain"))
 

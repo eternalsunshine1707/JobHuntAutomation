@@ -92,7 +92,5 @@ def filter_and_score_jobs(jobs: list[dict]) -> list[dict]:
     sort_order = {"Great Match": 0, "Good Match": 1, "Fair Match": 2}
     scored.sort(key=lambda x: sort_order.get(x["match_score"], 3))
 
-    # Cap at 100
-    result = scored[:MAX_JOBS_PER_EMAIL]
-    print(f"  [Matcher] {len(jobs)} raw → removed {removed_no_link} (no link), {removed_no_sponsor} (no sponsorship) → {len(scored)} remaining → showing top {len(result)}")
-    return result
+    print(f"  [Matcher] {len(jobs)} raw → removed {removed_no_link} (no link), {removed_no_sponsor} (no sponsorship) → {len(scored)} remaining")
+    return scored
