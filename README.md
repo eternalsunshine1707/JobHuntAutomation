@@ -1,159 +1,91 @@
-# 🔍 Job Hunt Automation Pipeline
+# Job Hunt Automation
 
-An automated job scraping pipeline that searches LinkedIn, Indeed, Dice, Built In, and Jobright every 4 hours, scores jobs by skill match, detects visa sponsorship likelihood, and emails you a formatted Excel report.
+I built this because I got tired of checking five different job boards every few hours. As someone on F-1 OPT actively looking for Data Engineer and Data Analyst roles, I needed a way to catch new postings early — before hundreds of other applicants pile on.
 
-Built with Python, Apify, and GitHub Actions.
+This pipeline scrapes LinkedIn, Indeed, Dice, Built In, and Jobright every few hours, filters out jobs that won't sponsor visas, scores each one against my resume skills, and emails me a clean Excel sheet. I wake up, open my inbox, and start applying to the best matches. No more tab-hopping across job boards.
 
-## 🎯 What It Does
+## What it actually does
 
-Every 4 hours, this pipeline automatically:
+Every run follows five steps:
 
-1. **Scrapes** jobs from 5 platforms (LinkedIn, Indeed, Dice, Built In, Jobright)
-2. **Deduplicates** across platforms and previous runs — you never see the same job twice
-3. **Scores** each job by how well it matches your skills (0-100)
-4. **Detects** visa sponsorship status (Yes / No / Unknown)
-5. **Generates** a formatted Excel file with hyperlinks, color-coded visa status
-6. **Emails** the file to your inbox
+1. Scrapes jobs from all five platforms using Apify actors
+2. Removes duplicates — both cross-platform (same job on LinkedIn and Indeed) and across runs (jobs I already saw this week)
+3. Scores each job as "Great Match," "Good Match," or "Fair Match" based on how well the required skills align with my background (Python, SQL, AWS, Spark, Databricks, ETL, etc.)
+4. Filters out any job that explicitly says "no visa sponsorship"
+5. Generates a formatted Excel file and emails it to me
 
-## 🏗️ Architecture
+The whole thing runs on GitHub Actions — no servers to manage, no infrastructure to maintain. Just a cron schedule and a Python script.
 
-```
-GitHub Actions (cron: every 4 hrs)
-        │
-        ▼
-    main.py (orchestrator)
-        │
-        ├── scrapers/          → Calls Apify actors for each platform
-        ├── processing/        → Dedup + skill matching + visa detection
-        ├── output/            → Excel generation with formatting
-        └── notify/            → Gmail SMTP email with attachment
-```
+## How it's scheduled
 
-## 📁 Project Structure
+Weekdays (Mon-Fri): 5:00 AM, 10:00 AM, 2:00 PM, 7:00 PM EST
+Weekends (Sat-Sun): 9:00 AM, 5:00 PM EST
+
+The 5 AM run is the most valuable — I get overnight postings before most people even check their email. The timing is based on when US companies typically post jobs (heaviest between 8-11 AM ET, with a second wave in the afternoon from west coast companies).
+
+## Project structure
 
 ```
 job-hunt-automation/
-├── .github/workflows/
-│   └── job_search.yml          # GitHub Actions workflow
 ├── scrapers/
-│   ├── linkedin_scraper.py     # LinkedIn via Apify
-│   ├── indeed_scraper.py       # Indeed via Apify
-│   ├── dice_scraper.py         # Dice via Apify
-│   ├── builtin_scraper.py      # Built In via Apify RAG browser
-│   └── jobright_scraper.py     # Jobright H1B jobs via GitHub
+│   ├── linkedin_scraper.py     # curious_coder/linkedin-jobs-scraper
+│   ├── indeed_scraper.py       # valig/indeed-jobs-scraper
+│   ├── dice_scraper.py         # shahidirfan/Dice-Job-Scraper
+│   ├── builtin_scraper.py      # easyapi/builtin-jobs-scraper
+│   └── jobright_scraper.py     # Scrapes Jobright's public GitHub H1B repo
 ├── processing/
-│   ├── matcher.py              # Skill scoring + visa detection
-│   └── deduplicator.py         # Cross-run deduplication
+│   ├── matcher.py              # Skill scoring and visa sponsorship detection
+│   └── deduplicator.py         # 7-day rolling dedup with timestamps
 ├── output/
-│   └── excel_generator.py      # Formatted .xlsx generator
+│   └── excel_generator.py      # Formatted xlsx with hyperlinks and color coding
 ├── notify/
-│   └── emailer.py              # Gmail SMTP sender
-├── main.py                     # Pipeline orchestrator
-├── config.py                   # All configuration
-├── requirements.txt
-└── README.md
+│   └── emailer.py              # Gmail SMTP with attachment
+├── main.py                     # Orchestrates everything
+├── config.py                   # All settings in one place
+└── .github/workflows/
+    └── job_search.yml          # GitHub Actions cron schedule
 ```
 
-## 🚀 Setup
+## The Excel output
 
-### Prerequisites
-- Python 3.11+
-- [Apify account](https://apify.com/) (free tier works)
-- Gmail account with App Password enabled
+Each sheet includes: job number, company, title, location, source platform, posting time, applicant count (when available), match score, visa sponsorship status, and a clickable apply link. Visa status is color-coded — green for "Yes," yellow for "Unknown." Jobs that explicitly say "No" to sponsorship are removed before the sheet is generated.
 
-### 1. Clone the repo
-```bash
-git clone https://github.com/YOUR_USERNAME/job-hunt-automation.git
-cd job-hunt-automation
-```
+The filename includes the date and time in EST so I can easily track which run produced which results.
 
-### 2. Install dependencies
-```bash
-pip install -r requirements.txt
-```
+## Tech stack
 
-### 3. Set up Gmail App Password
+- Python 3.11
+- Apify (scraping actors for each platform)
+- openpyxl (Excel generation)
+- Gmail SMTP (email delivery via App Password)
+- GitHub Actions (scheduled automation)
 
-You need a Gmail App Password (not your regular password):
+## Setup
 
-1. Go to [Google Account Security](https://myaccount.google.com/security)
-2. Enable **2-Step Verification** if not already enabled
-3. Go to [App Passwords](https://myaccount.google.com/apppasswords)
-4. Select "Mail" and "Other (Custom name)" → enter "Job Bot"
-5. Copy the 16-character password — this is your `EMAIL_APP_PASSWORD`
+If you want to use this yourself, you'll need:
 
-### 4. Test locally
-```bash
-export APIFY_API_TOKEN="your_apify_token"
-export EMAIL_SENDER="your_email@gmail.com"
-export EMAIL_APP_PASSWORD="your_16_char_app_password"
-export EMAIL_RECIPIENT="sravanistar99@gmail.com"
+1. An Apify account with an API token (Starter plan at $29/month covers it comfortably)
+2. A Gmail account with an App Password enabled (not your regular password — Google requires a 16-character app-specific password for SMTP)
+3. A GitHub repo with four secrets configured: `APIFY_API_TOKEN`, `EMAIL_SENDER`, `EMAIL_APP_PASSWORD`, `EMAIL_RECIPIENT`
 
-python main.py
-```
+Clone the repo, push to GitHub, and trigger the first run manually from the Actions tab. After that, the schedule handles everything automatically.
 
-### 5. Set up GitHub Actions
+Edit `config.py` to change job titles, target skills, or the list of known H1B sponsors. The skills list is what drives the match scoring — update it to reflect your own resume.
 
-Add these secrets in your GitHub repo → Settings → Secrets and variables → Actions:
+## Cost
 
-| Secret Name | Value |
-|---|---|
-| `APIFY_API_TOKEN` | Your Apify API token |
-| `EMAIL_SENDER` | Your Gmail address |
-| `EMAIL_APP_PASSWORD` | Gmail App Password (16 chars) |
-| `EMAIL_RECIPIENT` | sravanistar99@gmail.com |
+GitHub Actions is free for public repos. Apify's Starter plan gives $29/month in credits. With 24 runs per week across 5 platforms, I'm spending roughly $12-15/month — well within the budget. The cost per job listing is between $0.001 and $0.005 depending on the platform.
 
-### 6. Trigger manually
+## What I'd do differently next time
 
-Go to **Actions** tab → **Job Hunt Automation** → **Run workflow** → Click the green button.
+If I were starting over, I'd probably skip the RAG web browser approach for Built In entirely and go straight for the dedicated scraper. I spent more time debugging field name mismatches than I'd like to admit. Testing each scraper's actual API output before writing the parsing code would have saved hours.
 
-After that, it runs automatically every 4 hours.
+I'm also considering migrating the scheduler from GitHub Actions to AWS Lambda with EventBridge at some point — partly because it's a better fit architecturally, and partly because it'd be a good thing to talk about in interviews given my AWS background.
 
-## ⚙️ Configuration
+## License
 
-Edit `config.py` to customize:
+MIT — use it however you want.
 
-- **Job titles**: Add or remove target roles
-- **Skills**: Update `CORE_SKILLS` to match your resume
-- **Max jobs**: Adjust `MAX_JOBS_PER_PLATFORM`
-- **Known sponsors**: Add companies to the visa detection list
+---
 
-## 💰 Cost
-
-- **GitHub Actions**: Free (2,000 mins/month on private repos, unlimited on public)
-- **Apify scrapers**: ~$0.001–0.005 per job listing
-- **Estimated daily cost**: $0.50–2.00 for 6 runs across 5 platforms
-
-## 🛠️ Tech Stack
-
-- **Python 3.11** — Core language
-- **Apify** — Job scraping actors (LinkedIn, Indeed, Dice)
-- **openpyxl** — Excel file generation
-- **GitHub Actions** — Scheduled automation (cron)
-- **Gmail SMTP** — Email delivery
-
-## 📊 Sample Output
-
-The Excel file includes:
-- Job # | Company | Title | Location | Source | Posted | Applicants | Visa Sponsorship | Apply Link
-- Color-coded visa status (green = Yes, yellow = Unknown, red = No)
-- Clickable hyperlinks to apply directly
-- Sorted by skill match score
-
-## 🔮 Future Improvements
-
-- [ ] Migrate scheduler to AWS Lambda + EventBridge
-- [ ] Add Slack/Discord notifications
-- [ ] Build a dashboard to track application status
-- [ ] Add salary range extraction
-- [ ] Auto-generate tailored cover letters per job
-
-## 📝 License
-
-MIT License — use it, modify it, share it.
-
-## 👤 Author
-
-**Sravani Brahamma Routhu**
-- [LinkedIn](https://www.linkedin.com/in/sravaniofficial/)
-- [Email](mailto:sravanistar99@gmail.com)
+Built by Sravani Brahamma Routhu | [LinkedIn](https://www.linkedin.com/in/sravaniofficial/)

@@ -5,9 +5,6 @@ Also detects visa sponsorship likelihood.
 from config import CORE_SKILLS, VISA_POSITIVE, VISA_NEGATIVE
 
 
-MAX_JOBS_PER_EMAIL = 100
-
-
 def score_job(job: dict) -> str:
     """Score a job as Great Match, Good Match, or Fair Match based on resume skills."""
     text = f"{job.get('title', '')} {job.get('description', '')}".lower()

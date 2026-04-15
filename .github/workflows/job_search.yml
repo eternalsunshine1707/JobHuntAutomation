@@ -2,9 +2,15 @@ name: Job Hunt Automation
 
 on:
   schedule:
-    # Runs every 4 hours: 8AM, 12PM, 4PM, 8PM, 12AM, 4AM ET
-    # (GitHub Actions uses UTC, ET = UTC-4)
-    - cron: '0 0,4,8,12,16,20 * * *'
+    # Weekdays (Mon-Fri): 5AM, 10AM, 2PM, 7PM EST
+    # EST = UTC-4, so: 9:00, 14:00, 18:00, 23:00 UTC
+    - cron: '0 9 * * 1-5'   # 5:00 AM EST (Mon-Fri)
+    - cron: '0 14 * * 1-5'  # 10:00 AM EST (Mon-Fri)
+    - cron: '0 18 * * 1-5'  # 2:00 PM EST (Mon-Fri)
+    - cron: '0 23 * * 1-5'  # 7:00 PM EST (Mon-Fri)
+    # Weekends (Sat-Sun): 9AM, 5PM EST
+    - cron: '0 13 * * 0,6'  # 9:00 AM EST (Sat-Sun)
+    - cron: '0 21 * * 0,6'  # 5:00 PM EST (Sat-Sun)
   workflow_dispatch:  # Allows manual trigger from GitHub UI
 
 jobs:
