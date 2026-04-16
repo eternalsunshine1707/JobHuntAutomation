@@ -21,7 +21,7 @@ MAX_JOBS_PER_PLATFORM = 100
 DATE_POSTED_FILTER = "1"  # 1 = last 24 hours (closest filter available on most platforms)
 
 # --- Platforms ---
-PLATFORMS = ["linkedin", "indeed", "dice", "builtin"]
+PLATFORMS = ["linkedin", "indeed", "dice"]
 
 # --- Skills for matching/scoring (from resume) ---
 CORE_SKILLS = [
@@ -50,6 +50,9 @@ VISA_NEGATIVE = [
 
 # --- Deduplication ---
 SEEN_JOBS_FILE = "seen_jobs.json"
+
+# --- Last run timestamp tracking ---
+LAST_RUN_FILE = "last_run.json"
 
 # --- Output ---
 OUTPUT_DIR = "output_files"

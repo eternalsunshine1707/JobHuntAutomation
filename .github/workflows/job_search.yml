@@ -2,16 +2,14 @@ name: Job Hunt Automation
 
 on:
   schedule:
-    # Weekdays (Mon-Fri): 5AM, 10AM, 2PM, 7PM EST
-    # EST = UTC-4, so: 9:00, 14:00, 18:00, 23:00 UTC
-    - cron: '0 9 * * 1-5'   # 5:00 AM EST (Mon-Fri)
-    - cron: '0 14 * * 1-5'  # 10:00 AM EST (Mon-Fri)
-    - cron: '0 18 * * 1-5'  # 2:00 PM EST (Mon-Fri)
-    - cron: '0 23 * * 1-5'  # 7:00 PM EST (Mon-Fri)
-    # Weekends (Sat-Sun): 9AM, 5PM EST
-    - cron: '0 13 * * 0,6'  # 9:00 AM EST (Sat-Sun)
-    - cron: '0 21 * * 0,6'  # 5:00 PM EST (Sat-Sun)
-  workflow_dispatch:  # Allows manual trigger from GitHub UI
+    # Weekdays (Mon-Fri): 4 AM, 11 AM, 6 PM EST
+    # EST = UTC-4, so: 8:00, 15:00, 22:00 UTC
+    - cron: '0 8 * * 1-5'   # 4:00 AM EST
+    - cron: '0 15 * * 1-5'  # 11:00 AM EST
+    - cron: '0 22 * * 1-5'  # 6:00 PM EST
+    # Weekends (Sat-Sun): 10 AM EST = 14:00 UTC
+    - cron: '0 14 * * 0,6'  # 10:00 AM EST
+  workflow_dispatch:  # Allows manual trigger
 
 jobs:
   scrape-and-notify:
@@ -29,12 +27,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Load seen jobs cache
+      - name: Restore seen jobs and last run cache
         uses: actions/cache@v4
         with:
-          path: seen_jobs.json
-          key: seen-jobs-${{ github.run_id }}
-          restore-keys: seen-jobs-
+          path: |
+            seen_jobs.json
+            last_run.json
+          key: pipeline-state-${{ github.run_id }}
+          restore-keys: pipeline-state-
 
       - name: Run pipeline
         env:
@@ -44,9 +44,11 @@ jobs:
           EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
         run: python main.py
 
-      - name: Save seen jobs cache
+      - name: Save cache
         if: always()
         uses: actions/cache/save@v4
         with:
-          path: seen_jobs.json
-          key: seen-jobs-${{ github.run_id }}
+          path: |
+            seen_jobs.json
+            last_run.json
+          key: pipeline-state-${{ github.run_id }}

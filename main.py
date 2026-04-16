@@ -1,73 +1,64 @@
 """
 Job Hunt Automation Pipeline — Main Orchestrator
 
-This script:
-1. Scrapes jobs from LinkedIn, Indeed, Dice, Built In, and Jobright
-2. Deduplicates across platforms and previous runs
-3. Scores and ranks jobs by skill match
-4. Detects visa sponsorship likelihood
-5. Generates a formatted Excel file
-6. Emails it to you
-
-Designed to run every 4 hours via GitHub Actions.
+Scrapes jobs from LinkedIn, Indeed, and Dice.
+Filters to US-only, data-related roles, posted since last run.
+Scores by skill match, removes visa-unfriendly postings, and emails the results.
 """
 import sys
-from datetime import datetime
-from config import JOB_TITLES
-from scrapers import scrape_linkedin, scrape_indeed, scrape_dice, scrape_builtin, scrape_jobright
+import json
+import os
+from datetime import datetime, timezone, timedelta
+from config import JOB_TITLES, LAST_RUN_FILE
+from scrapers import scrape_linkedin, scrape_indeed, scrape_dice
 from processing import filter_and_score_jobs, deduplicate_jobs
+from processing.time_filter import filter_by_last_run, save_current_run_timestamp, get_last_run_time
+from processing.location_filter import filter_us_only
+from processing.role_filter import filter_data_roles
 from output import generate_excel
 from notify import send_email
+
+EST = timezone(timedelta(hours=-4))
 
 
 def run_pipeline():
     """Execute the full job scraping pipeline."""
-    start = datetime.now()
+    start = datetime.now(EST)
     print(f"\n{'='*60}")
     print(f"  JOB HUNT AUTOMATION PIPELINE")
-    print(f"  Started: {start.strftime('%B %d, %Y at %I:%M %p ET')}")
+    print(f"  Started: {start.strftime('%B %d, %Y at %I:%M %p EST')}")
     print(f"{'='*60}\n")
+
+    last_run = get_last_run_time()
+    if last_run:
+        print(f"  Last run: {last_run.strftime('%B %d, %Y at %I:%M %p EST')}")
+    else:
+        print(f"  No previous run found. Using 24-hour lookback for this run.")
+    print()
 
     all_jobs = []
 
-    # --- Step 1: Scrape from all platforms ---
-    print("[Step 1/5] Scraping jobs from all platforms...\n")
+    # --- Step 1: Scrape from 3 platforms ---
+    print("[Step 1/6] Scraping jobs from LinkedIn, Indeed, and Dice...\n")
 
     for title in JOB_TITLES:
-        # LinkedIn
         try:
             jobs = scrape_linkedin(title)
             all_jobs.extend(jobs)
         except Exception as e:
             print(f"  [LinkedIn] Error for '{title}': {e}")
 
-        # Indeed
         try:
             jobs = scrape_indeed(title)
             all_jobs.extend(jobs)
         except Exception as e:
             print(f"  [Indeed] Error for '{title}': {e}")
 
-        # Dice
         try:
             jobs = scrape_dice(title)
             all_jobs.extend(jobs)
         except Exception as e:
             print(f"  [Dice] Error for '{title}': {e}")
-
-        # Built In
-        try:
-            jobs = scrape_builtin(title)
-            all_jobs.extend(jobs)
-        except Exception as e:
-            print(f"  [BuiltIn] Error for '{title}': {e}")
-
-    # Jobright (not filtered by title — it has its own curation)
-    try:
-        jobs = scrape_jobright()
-        all_jobs.extend(jobs)
-    except Exception as e:
-        print(f"  [Jobright] Error: {e}")
 
     print(f"\n  Total raw jobs scraped: {len(all_jobs)}\n")
 
@@ -75,36 +66,51 @@ def run_pipeline():
         print("  No jobs found. Exiting.")
         return
 
-    # --- Step 2: Deduplicate ---
-    print("[Step 2/5] Removing duplicates...\n")
-    unique_jobs = deduplicate_jobs(all_jobs)
+    # --- Step 2: Filter to US only ---
+    print("[Step 2/6] Filtering to US-only jobs...\n")
+    us_jobs = filter_us_only(all_jobs)
+
+    # --- Step 3: Filter to data-related roles ---
+    print("\n[Step 3/6] Filtering to data-related roles...\n")
+    data_jobs = filter_data_roles(us_jobs)
+
+    # --- Step 4: Filter by last run timestamp ---
+    print("\n[Step 4/6] Filtering to jobs posted since last run...\n")
+    recent_jobs = filter_by_last_run(data_jobs, last_run)
+
+    # --- Step 5: Deduplicate (7-day rolling window) ---
+    print("\n[Step 5/6] Removing duplicates (7-day rolling dedup)...\n")
+    unique_jobs = deduplicate_jobs(recent_jobs)
 
     if not unique_jobs:
-        print("  No new jobs after deduplication. Exiting.")
+        print("  No new jobs after filtering. Exiting.")
+        save_current_run_timestamp()
         return
 
-    # --- Step 3: Score and rank ---
-    print("\n[Step 3/5] Scoring and ranking by skill match...\n")
+    # --- Step 6: Score and rank ---
+    print("\n[Step 6/6] Scoring and ranking by skill match...\n")
     scored_jobs = filter_and_score_jobs(unique_jobs)
 
     if not scored_jobs:
         print("  No jobs after scoring. Exiting.")
+        save_current_run_timestamp()
         return
 
-    print(f"  Final job count: {len(scored_jobs)}")
-    print(f"  Top match score: {scored_jobs[0]['match_score'] if scored_jobs else 'N/A'}")
+    print(f"\n  Final job count: {len(scored_jobs)}")
     print(f"  Jobs with visa sponsorship: {sum(1 for j in scored_jobs if 'yes' in j.get('visa_sponsorship', '').lower())}")
 
-    # --- Step 4: Generate Excel ---
-    print("\n[Step 4/5] Generating Excel file...\n")
+    # --- Generate Excel ---
+    print("\n  Generating Excel file...\n")
     filepath = generate_excel(scored_jobs)
 
-    # --- Step 5: Email ---
-    print("\n[Step 5/5] Sending email...\n")
+    # --- Send email ---
+    print("\n  Sending email...\n")
     send_email(filepath, len(scored_jobs))
 
-    # Done
-    elapsed = (datetime.now() - start).total_seconds()
+    # --- Save timestamp for next run ---
+    save_current_run_timestamp()
+
+    elapsed = (datetime.now(EST) - start).total_seconds()
     print(f"\n{'='*60}")
     print(f"  PIPELINE COMPLETE")
     print(f"  Jobs found: {len(scored_jobs)}")
