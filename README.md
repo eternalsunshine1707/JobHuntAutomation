@@ -86,7 +86,7 @@ Test each scraper's actual API output before writing the parsing code. I spent w
 
 The other thing I underestimated was how each platform implements its "last 24 hours" filter. Most of them include reposted listings in that window, which meant I was getting jobs from 2-3 weeks ago showing up as new. The fix was to add my own time filter that reads the posting timestamp from each job and compares it against the last run's end time - ignoring what the platform claims the date filter does.
 
-## What's next
+## What's next!?
 
 A few things I'd like to add when I have time:
 
@@ -97,7 +97,7 @@ A few things I'd like to add when I have time:
 
 ## License
 
-MIT. Use it, fork it, adapt it to your own job search.
+MIT. Use it, fork it, adapt it to your own job search!
 
 ---
 
