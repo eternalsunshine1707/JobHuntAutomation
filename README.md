@@ -1,8 +1,8 @@
-# Job Hunt Automation
+# <ins>Job Hunt Automation</ins>
 
 I built this because I got tired of refreshing LinkedIn, Indeed, and Dice every few hours to see what was new. As someone on F-1 OPT actively looking for Data Engineer and Data Analyst roles, being one of the first 50 applicants makes a real difference. This tool handles the checking for me and sends me a clean Excel sheet with the relevant jobs so I can focus on actually applying.
 
-## What it does
+## Mmm.. What it actually does!?
 
 The pipeline runs on a schedule (more on that below), scrapes new postings from three platforms, filters out the noise, and emails me the results as a formatted Excel file.
 
@@ -80,7 +80,7 @@ GitHub Actions is free. Apify's Starter plan is $29/month with $29 in usage cred
 
 I did experiment with Built In and Jobright scrapers early on but dropped them. Built In was the most expensive scraper by far (nearly 3x the cost per result) and Jobright's data quality was inconsistent. LinkedIn, Indeed, and Dice cover the vast majority of listings I care about anyway.
 
-## Things I'd do differently next time
+## What I'd do differently next time!?
 
 Test each scraper's actual API output before writing the parsing code. I spent way more time than I should have debugging field name mismatches - what I thought was `jobUrl` turned out to be `link`, what I thought was `company` turned out to be `employer.name`, and so on. Running the actor once, inspecting the output, and then writing the scraper would have saved hours.
 
