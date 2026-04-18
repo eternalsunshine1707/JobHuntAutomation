@@ -1,7 +1,7 @@
 # <ins>Job Hunt Automation</ins>
 I built this because I got tired of refreshing five different job boards every few hours, to see what was new. As someone on F-1 OPT actively looking for Data Engineer and Data Analyst roles, I needed a way to catch new postings early, you know, before hundreds of other applicants pile on.
 
-This pipeline scrapes Linkedin, Indeed and Dice every few hours, filters out jobs that won't sponsor visas, scores each one against my resume skills, and emails me a clean Excel sheet with the relevant jobs. I wake up, open my inbox, and start applying to the best matches. No more tab-hopping across job boards. This tool handles the checking for me so I can focus on actually applying.
+This pipeline scrapes Linkedin, Indeed and Dice every few hours and emails me a clean Excel sheet with the relevant jobs. I wake up, open my inbox, and start applying to the best matches. No more tab-hopping across job boards. This tool handles the checking for me so I can focus on actually applying.
 
 ## Mmm.. What it actually does!?
 
