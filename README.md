@@ -98,7 +98,7 @@ A few things I'd like to add when I have time:
 
 ## License
 
-MIT. Use it, fork it, adapt it to your own job search!
+MIT. Use it, fork it, adapt it to your own job search! :)
 
 ---
 
