@@ -28,13 +28,13 @@ def send_email(filepath: str, job_count: int):
     msg["To"] = EMAIL_RECIPIENT
     msg["Subject"] = f"Job Search Results | {date_str} | {time_str}"
 
-    body = f"""Reyy Sravani,
+    body = f"""Reyy,
 
 Your automated job search found {job_count} new listings across LinkedIn, Indeed, and Dice.
 
 The attached Excel file contains all jobs sorted by skill match, with visa sponsorship status flagged.
 
-— Job Hunt Automation Bot
+- Job Hunt Automation Bot
 """
     msg.attach(MIMEText(body, "plain"))
 
